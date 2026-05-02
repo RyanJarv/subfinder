@@ -118,6 +118,59 @@ var AllSources = [...]subscraping.Source{
 	&submd.Source{},
 }
 
+var SourceFactories = map[string]func() subscraping.Source{
+	"alienvault":     func() subscraping.Source { return &alienvault.Source{} },
+	"anubis":         func() subscraping.Source { return &anubis.Source{} },
+	"bevigil":        func() subscraping.Source { return &bevigil.Source{} },
+	"bufferover":     func() subscraping.Source { return &bufferover.Source{} },
+	"builtwith":      func() subscraping.Source { return &builtwith.Source{} },
+	"c99":            func() subscraping.Source { return &c99.Source{} },
+	"censys":         func() subscraping.Source { return &censys.Source{} },
+	"certspotter":    func() subscraping.Source { return &certspotter.Source{} },
+	"chaos":          func() subscraping.Source { return &chaos.Source{} },
+	"chinaz":         func() subscraping.Source { return &chinaz.Source{} },
+	"commoncrawl":    func() subscraping.Source { return &commoncrawl.Source{} },
+	"crtsh":          func() subscraping.Source { return &crtsh.Source{} },
+	"digitalyama":    func() subscraping.Source { return &digitalyama.Source{} },
+	"digitorus":      func() subscraping.Source { return &digitorus.Source{} },
+	"dnsdb":          func() subscraping.Source { return &dnsdb.Source{} },
+	"dnsdumpster":    func() subscraping.Source { return &dnsdumpster.Source{} },
+	"dnsrepo":        func() subscraping.Source { return &dnsrepo.Source{} },
+	"domainsproject": func() subscraping.Source { return &domainsproject.Source{} },
+	"driftnet":       func() subscraping.Source { return &driftnet.Source{} },
+	"fofa":           func() subscraping.Source { return &fofa.Source{} },
+	"fullhunt":       func() subscraping.Source { return &fullhunt.Source{} },
+	"github":         func() subscraping.Source { return &github.Source{} },
+	"hackertarget":   func() subscraping.Source { return &hackertarget.Source{} },
+	"hudsonrock":     func() subscraping.Source { return &hudsonrock.Source{} },
+	"intelx":         func() subscraping.Source { return &intelx.Source{} },
+	"leakix":         func() subscraping.Source { return &leakix.Source{} },
+	"merklemap":      func() subscraping.Source { return &merklemap.Source{} },
+	"netlas":         func() subscraping.Source { return &netlas.Source{} },
+	"onyphe":         func() subscraping.Source { return &onyphe.Source{} },
+	"profundis":      func() subscraping.Source { return &profundis.Source{} },
+	"pugrecon":       func() subscraping.Source { return &pugrecon.Source{} },
+	"quake":          func() subscraping.Source { return &quake.Source{} },
+	"rapiddns":       func() subscraping.Source { return &rapiddns.Source{} },
+	"reconeer":       func() subscraping.Source { return &reconeer.Source{} },
+	"redhuntlabs":    func() subscraping.Source { return &redhuntlabs.Source{} },
+	"robtex":         func() subscraping.Source { return &robtex.Source{} },
+	"rsecloud":       func() subscraping.Source { return &rsecloud.Source{} },
+	"securitytrails": func() subscraping.Source { return &securitytrails.Source{} },
+	"shodan":         func() subscraping.Source { return &shodan.Source{} },
+	"sitedossier":    func() subscraping.Source { return &sitedossier.Source{} },
+	"submd":          func() subscraping.Source { return &submd.Source{} },
+	"thc":            func() subscraping.Source { return &thc.Source{} },
+	"threatbook":     func() subscraping.Source { return &threatbook.Source{} },
+	"threatcrowd":    func() subscraping.Source { return &threatcrowd.Source{} },
+	"urlscan":        func() subscraping.Source { return &urlscan.Source{} },
+	"virustotal":     func() subscraping.Source { return &virustotal.Source{} },
+	"waybackarchive": func() subscraping.Source { return &waybackarchive.Source{} },
+	"whoisxmlapi":    func() subscraping.Source { return &whoisxmlapi.Source{} },
+	"windvane":       func() subscraping.Source { return &windvane.Source{} },
+	"zoomeyeapi":     func() subscraping.Source { return &zoomeyeapi.Source{} },
+}
+
 var sourceWarnings = mapsutil.NewSyncLockMap[string, string](
 	mapsutil.WithMap(mapsutil.Map[string, string]{}))
 
@@ -138,23 +191,35 @@ type Agent struct {
 
 // New creates a new agent for passive subdomain discovery
 func New(sourceNames, excludedSourceNames []string, useAllSources, useSourcesSupportingRecurse bool) *Agent {
+	return NewWithProviderKeys(sourceNames, excludedSourceNames, useAllSources, useSourcesSupportingRecurse, nil)
+}
+
+// NewWithProviderKeys creates an agent with fresh source instances and applies
+// provider keys to those instances instead of mutating package-level sources.
+func NewWithProviderKeys(sourceNames, excludedSourceNames []string, useAllSources, useSourcesSupportingRecurse bool, providerKeys map[string][]string) *Agent {
 	sources := make(map[string]subscraping.Source, len(AllSources))
 
 	if useAllSources {
-		maps.Copy(sources, NameSourceMap)
+		for sourceName := range NameSourceMap {
+			if source := NewSource(sourceName); source != nil {
+				sources[sourceName] = source
+			}
+		}
 	} else {
 		if len(sourceNames) > 0 {
 			for _, source := range sourceNames {
-				if NameSourceMap[source] == nil {
+				sourceName := strings.ToLower(source)
+				if NameSourceMap[sourceName] == nil {
 					gologger.Warning().Msgf("There is no source with the name: %s", source)
 				} else {
-					sources[source] = NameSourceMap[source]
+					sources[sourceName] = NewSource(sourceName)
 				}
 			}
 		} else {
 			for _, currentSource := range AllSources {
 				if currentSource.IsDefault() {
-					sources[currentSource.Name()] = currentSource
+					sourceName := strings.ToLower(currentSource.Name())
+					sources[sourceName] = NewSource(sourceName)
 				}
 			}
 		}
@@ -189,7 +254,10 @@ func New(sourceNames, excludedSourceNames []string, useAllSources, useSourcesSup
 	for _, source := range sources {
 		keyReq := source.KeyRequirement()
 		if keyReq == subscraping.RequiredKey || keyReq == subscraping.OptionalKey {
-			if apiKey := os.Getenv(fmt.Sprintf("%s_API_KEY", strings.ToUpper(source.Name()))); apiKey != "" {
+			sourceName := strings.ToLower(source.Name())
+			if apiKeys := providerKeys[sourceName]; len(apiKeys) > 0 {
+				source.AddApiKeys(apiKeys)
+			} else if apiKey := os.Getenv(fmt.Sprintf("%s_API_KEY", strings.ToUpper(source.Name()))); apiKey != "" {
 				source.AddApiKeys([]string{apiKey})
 			}
 		}
@@ -199,4 +267,24 @@ func New(sourceNames, excludedSourceNames []string, useAllSources, useSourcesSup
 	agent := &Agent{sources: maps.Values(sources)}
 
 	return agent
+}
+
+// NewSource returns a fresh source instance for a source name.
+func NewSource(sourceName string) subscraping.Source {
+	factory := SourceFactories[strings.ToLower(sourceName)]
+	if factory == nil {
+		return nil
+	}
+	return factory()
+}
+
+// NewSources returns fresh instances for all known source names.
+func NewSources() []subscraping.Source {
+	sources := make([]subscraping.Source, 0, len(SourceFactories))
+	for sourceName := range NameSourceMap {
+		if source := NewSource(sourceName); source != nil {
+			sources = append(sources, source)
+		}
+	}
+	return sources
 }

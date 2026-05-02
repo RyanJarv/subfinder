@@ -144,6 +144,16 @@ func TestSourceCategorization(t *testing.T) {
 	assert.ElementsMatch(t, expectedDefaultSources, defaultSources)
 	assert.ElementsMatch(t, expectedDefaultRecursiveSources, recursiveSources)
 	assert.ElementsMatch(t, expectedAllSources, maps.Keys(NameSourceMap))
+	assert.ElementsMatch(t, expectedAllSources, maps.Keys(SourceFactories))
+}
+
+func TestNewSourceReturnsFreshInstances(t *testing.T) {
+	first := NewSource("shodan")
+	second := NewSource("shodan")
+
+	assert.NotNil(t, first)
+	assert.NotNil(t, second)
+	assert.NotSame(t, first, second)
 }
 
 // Review: not sure if this test is necessary/useful
