@@ -42,10 +42,9 @@ func NewRunner(options *Options) (*Runner, error) {
 	// Otherwise load the default provider config
 	if fileutil.FileExists(options.ProviderConfig) {
 		gologger.Info().Msgf("Loading provider config from %s", options.ProviderConfig)
-		options.loadProvidersFrom(options.ProviderConfig)
 	} else {
 		gologger.Info().Msgf("Loading provider config from the default location: %s", defaultProviderConfigLocation)
-		options.loadProvidersFrom(defaultProviderConfigLocation)
+		options.ProviderConfig = defaultProviderConfigLocation
 	}
 
 	// Initialize the passive subdomain enumeration engine

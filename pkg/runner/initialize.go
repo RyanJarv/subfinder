@@ -5,13 +5,18 @@ import (
 	"strings"
 
 	"github.com/projectdiscovery/dnsx/libs/dnsx"
+	"github.com/projectdiscovery/gologger"
 	"github.com/projectdiscovery/subfinder/v2/pkg/passive"
 	"github.com/projectdiscovery/subfinder/v2/pkg/resolve"
 )
 
 // initializePassiveEngine creates the passive engine and loads sources etc
 func (r *Runner) initializePassiveEngine() {
-	r.passiveAgent = passive.New(r.options.Sources, r.options.ExcludeSources, r.options.All, r.options.OnlyRecursive)
+	sources, _, err := FreshSourcesFromOptions(*r.options)
+	if err != nil {
+		gologger.Fatal().Msg(err.Error())
+	}
+	r.passiveAgent = passive.NewAgent(sources)
 }
 
 // initializeResolver creates the resolver used to resolve the found subdomains

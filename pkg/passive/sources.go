@@ -189,6 +189,10 @@ type Agent struct {
 	sources []subscraping.Source
 }
 
+func NewAgent(sources []subscraping.Source) *Agent {
+	return &Agent{sources: sources}
+}
+
 // New creates a new agent for passive subdomain discovery
 func New(sourceNames, excludedSourceNames []string, useAllSources, useSourcesSupportingRecurse bool) *Agent {
 	return NewWithProviderKeys(sourceNames, excludedSourceNames, useAllSources, useSourcesSupportingRecurse, nil)
