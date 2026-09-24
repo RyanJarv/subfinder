@@ -33,6 +33,7 @@ var (
 		"github",
 		"hackertarget",
 		"intelx",
+		"jsmon",
 		"netlas",
 		"onyphe",
 		"quake",
