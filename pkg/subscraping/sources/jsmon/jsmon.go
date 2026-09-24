@@ -83,11 +83,12 @@ func (s *Source) Run(ctx context.Context, domain string, session *subscraping.Se
 				return
 			}
 			data, err := io.ReadAll(io.LimitReader(resp.Body, maxPageBytes+1))
-			sourceSession.DiscardHTTPResponse(resp)
 			if err != nil || len(data) > maxPageBytes {
+				_ = resp.Body.Close()
 				s.reportError(ctx, results, fmt.Errorf("JSMon page %d exceeds response limit or could not be read", page))
 				return
 			}
+			sourceSession.DiscardHTTPResponse(resp)
 			var body pageResponse
 			if err := json.Unmarshal(data, &body); err != nil || body.Subdomains == nil || body.Page != page || body.TotalPages < page && !(page == 1 && body.TotalPages == 0 && len(body.Subdomains) == 0) || totalPages != 0 && totalPages != body.TotalPages || page < body.TotalPages && len(body.Subdomains) == 0 {
 				s.reportError(ctx, results, fmt.Errorf("JSMon returned invalid page %d", page))

@@ -3,10 +3,12 @@ package jsmon
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -121,5 +123,40 @@ func TestMalformedPageReportsError(t *testing.T) {
 	}
 	if len(got) != 1 || got[0].Type != subscraping.Error {
 		t.Fatalf("results = %+v, want invalid-page error", got)
+	}
+}
+
+type trackingBody struct {
+	reader io.Reader
+	read   int
+	closed bool
+}
+
+func (b *trackingBody) Read(p []byte) (int, error) {
+	n, err := b.reader.Read(p)
+	b.read += n
+	return n, err
+}
+
+func (b *trackingBody) Close() error { b.closed = true; return nil }
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestOversizedPageDoesNotDrainResponse(t *testing.T) {
+	ctx, session := testSession(t)
+	body := &trackingBody{reader: strings.NewReader(strings.Repeat("x", maxPageBytes*2))}
+	session.Client.Transport = roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: body, Header: make(http.Header)}, nil
+	})
+	source := &Source{}
+	source.AddApiKeys([]string{"test-key"})
+	var got []subscraping.Result
+	for result := range source.Run(ctx, "example.com", session) {
+		got = append(got, result)
+	}
+	if len(got) != 1 || got[0].Type != subscraping.Error || body.read > maxPageBytes+1 || !body.closed {
+		t.Fatalf("results = %+v, read = %d, closed = %t", got, body.read, body.closed)
 	}
 }
