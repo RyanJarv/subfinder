@@ -34,6 +34,7 @@ import (
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/hackertarget"
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/hudsonrock"
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/intelx"
+	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/jsmon"
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/leakix"
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/merklemap"
 	"github.com/projectdiscovery/subfinder/v2/pkg/subscraping/sources/netlas"
@@ -88,6 +89,7 @@ var AllSources = [...]subscraping.Source{
 	&hackertarget.Source{},
 	&hudsonrock.Source{},
 	&intelx.Source{},
+	&jsmon.Source{},
 	&leakix.Source{},
 	&merklemap.Source{},
 	&netlas.Source{},
@@ -144,6 +146,7 @@ var SourceFactories = map[string]func() subscraping.Source{
 	"hackertarget":   func() subscraping.Source { return &hackertarget.Source{} },
 	"hudsonrock":     func() subscraping.Source { return &hudsonrock.Source{} },
 	"intelx":         func() subscraping.Source { return &intelx.Source{} },
+	"jsmon":          func() subscraping.Source { return &jsmon.Source{} },
 	"leakix":         func() subscraping.Source { return &leakix.Source{} },
 	"merklemap":      func() subscraping.Source { return &merklemap.Source{} },
 	"netlas":         func() subscraping.Source { return &netlas.Source{} },
